@@ -129,9 +129,9 @@ function Dashboard() {
     if (isLoading) return <div>Loading forms...</div>
 
     return (
-        <div>
+        <div className="p-10">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Forms Dashboard</h2>
+                < h2 className="text-2xl font-bold text-gray-800" > Forms Dashboard</h2 >
                 <Link
                     to="/admin/create"
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium"
@@ -139,7 +139,7 @@ function Dashboard() {
                     <Plus size={18} />
                     Create Form
                 </Link>
-            </div>
+            </div >
 
             <div className="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
                 <table className="w-full text-left border-collapse">
@@ -180,6 +180,6 @@ function Dashboard() {
                     </tbody>
                 </table>
             </div>
-        </div>
+        </div >
     )
 }

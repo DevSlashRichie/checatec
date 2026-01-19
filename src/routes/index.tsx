@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { api } from '../lib/api'
 import { CheckCircle } from 'lucide-react'
 
@@ -14,17 +14,80 @@ function Index() {
         queryFn: api.getActiveForm,
     })
 
-    // State to track current question index
+    // State
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
     const [completed, setCompleted] = useState(false)
     const [answers, setAnswers] = useState<{ questionId: string, answerId: string }[]>([])
 
+    // Inactivity Timeout
+    const TIMEOUT_MS = 10000 // 30 seconds
+    // Use proper timeout type that works in both envs or just any/number
+    const timerRef = useRef<any>(null)
+
     const submitMutation = useMutation({
         mutationFn: api.submitResponse,
         onSuccess: () => {
-            setCompleted(true)
+            // Logic handled in call sites or effects
         }
     })
+
+    const resetForm = () => {
+        setCurrentQuestionIndex(0)
+        setAnswers([])
+        setCompleted(false)
+        if (timerRef.current) clearTimeout(timerRef.current)
+    }
+
+    const handleTimeout = () => {
+        console.log("Inactivity timeout. Submitting partial response...")
+        // Only submit if we have data and we explicitly want to capture partials
+        // (form && answers.length > 0)
+        if (form && answers.length > 0) {
+            submitMutation.mutate({
+                formId: form.id,
+                answers: answers,
+                status: 'partial'
+            })
+        }
+        resetForm()
+    }
+
+    const resetTimer = () => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        timerRef.current = setTimeout(handleTimeout, TIMEOUT_MS)
+    }
+
+    // Effect for Timer and Listeners
+    useEffect(() => {
+        // Only run timer if form is loaded and not completed
+        if (!form || completed) return
+
+        resetTimer()
+
+        const handleInteraction = () => resetTimer()
+        window.addEventListener('click', handleInteraction)
+        window.addEventListener('touchstart', handleInteraction)
+        window.addEventListener('keydown', handleInteraction)
+
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current)
+            window.removeEventListener('click', handleInteraction)
+            window.removeEventListener('touchstart', handleInteraction)
+            window.removeEventListener('keydown', handleInteraction)
+        }
+    }, [form, completed, answers, currentQuestionIndex])
+    // Including dependencies ensures closure freshness for handleTimeout/answers access
+
+    // Effect for Auto-Reset on Completion Screen
+    useEffect(() => {
+        if (completed) {
+            const timeout = setTimeout(() => {
+                resetForm()
+            }, 5000) // 5 seconds on Thank You screen
+            return () => clearTimeout(timeout)
+        }
+    }, [completed])
+
 
     if (isLoading) {
         return (
@@ -60,6 +123,12 @@ function Index() {
     }
 
     const currentQuestion = form.questions[currentQuestionIndex]
+    // Safety check just in case index is out of bounds
+    if (!currentQuestion) {
+        // Should not happen, but safe fallback
+        return <div>Error: Question not found</div>
+    }
+
     const isLastQuestion = currentQuestionIndex === form.questions.length - 1
 
     const handleAnswer = (answerId: string) => {
@@ -67,12 +136,18 @@ function Index() {
         const newAnswers = [...answers, { questionId: currentQuestion.id, answerId }]
         setAnswers(newAnswers)
 
+        // Reset timer explicitly to avoid race condition
+        resetTimer()
+
         if (isLastQuestion) {
-            // Submit all
+            // Submit all - Completed
             submitMutation.mutate({
                 formId: form.id,
-                answers: newAnswers
+                answers: newAnswers,
+                status: 'completed'
             })
+            setCompleted(true)
+            if (timerRef.current) clearTimeout(timerRef.current)
         } else {
             // Next question
             setCurrentQuestionIndex(prev => prev + 1)
@@ -91,6 +166,15 @@ function Index() {
 
             <div className="flex-1 flex flex-col items-center justify-center p-6 max-w-lg mx-auto w-full">
                 <div className="w-full animate-in slide-in-from-right-8 fade-in duration-300" key={currentQuestion.id}>
+                    {currentQuestion.imageUrl && (
+                        <div className="mb-8 flex justify-center">
+                            <img
+                                src={currentQuestion.imageUrl}
+                                alt="Question"
+                                className="rounded-lg shadow-md max-h-64 object-cover w-full md:w-auto"
+                            />
+                        </div>
+                    )}
                     <h2 className="text-3xl md:text-4xl font-bold text-gray-900 text-center mb-12 leading-tight">
                         {currentQuestion.text}
                     </h2>

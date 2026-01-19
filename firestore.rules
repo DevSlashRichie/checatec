@@ -2,18 +2,37 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 2, 18);
+    // Forms:
+    // - Public: Read ONLY if status is 'active'
+    // - Admin: Read/Write all
+    match /forms/{formId} {
+      allow read: if (resource.data.status == 'active') || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // Responses:
+    // - Public: Create only (submit response)
+    // - Admin: Read/Write all
+    // - Owner: Maybe read their own? (Not required by strict prompt, prompt says "unlogged users are able to read ONLY active form" - implies they probably can't read their past responses once session is lost? But usually we allow create)
+    match /responses/{responseId} {
+      allow create: if true; // Allow public submissions
+      allow read, update, delete: if isAdmin();
+    }
+    
+    // Admins Collection:
+    // - Only readable by the user themselves (to verify status)
+    // - Not writable by public (must be set manually in console or by another admin)
+    match /admins/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // can be only edited via firebase console
+      allow write: if false; 
     }
   }
 }

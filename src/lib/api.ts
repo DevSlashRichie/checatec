@@ -12,7 +12,8 @@ import {
     limit,
     serverTimestamp
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "./firebase";
 import type { Form, Response } from "./types";
 
 const FORMS_COLLECTION = "forms";
@@ -113,5 +114,11 @@ export const api = {
         );
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Response));
+    },
+
+    async uploadFile(file: File): Promise<string> {
+        const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        return getDownloadURL(snapshot.ref);
     }
 };

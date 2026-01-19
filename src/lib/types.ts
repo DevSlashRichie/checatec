@@ -9,6 +9,7 @@ export interface Answer {
 export interface Question {
     id: string;
     text: string;
+    imageUrl?: string;
     answers: Answer[];
 }
 
@@ -27,5 +28,6 @@ export interface Response {
         questionId: string;
         answerId: string;
     }[];
+    status: 'completed' | 'partial';
     timestamp: Timestamp;
 }
