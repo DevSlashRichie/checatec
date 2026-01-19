@@ -2,7 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api";
-import { Plus, Trash2, Save, ArrowLeft, Image as ImageIcon } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Save,
+  ArrowLeft,
+  Image as ImageIcon,
+} from "lucide-react";
 import type { Form } from "../../lib/types";
 
 export const Route = createFileRoute("/admin/create")({
@@ -146,12 +152,11 @@ function CreateForm() {
                           />
                         </div>
                       )}
-
                     />
 
                     {/* Question Image Input */}
                     <form.Field
-                      name={`questions[${qIndex}].imageUrl`}
+                      name={`questions[${qIndex}].imageUrl` as any}
                       children={(imgField) => (
                         <div className="mb-4">
                           <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
@@ -167,7 +172,9 @@ function CreateForm() {
                               />
                               <button
                                 type="button"
-                                onClick={() => imgField.handleChange(undefined)}
+                                onClick={() =>
+                                  imgField.handleChange(undefined as any)
+                                }
                                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
                               >
                                 <Trash2 size={12} />
@@ -188,7 +195,7 @@ function CreateForm() {
                                       try {
                                         // Show loading state if needed? For now just await
                                         const url = await api.uploadFile(file);
-                                        imgField.handleChange(url);
+                                        imgField.handleChange(url as any);
                                       } catch (err) {
                                         console.error("Upload failed", err);
                                         alert("Failed to upload image.");
@@ -197,7 +204,9 @@ function CreateForm() {
                                   }}
                                 />
                               </label>
-                              <span className="text-xs text-gray-400">JPG, PNG, GIF up to 5MB</span>
+                              <span className="text-xs text-gray-400">
+                                JPG, PNG, GIF up to 5MB
+                              </span>
                             </div>
                           )}
                         </div>
