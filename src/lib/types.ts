@@ -18,6 +18,7 @@ export interface Form {
     title: string;
     status: "active" | "archived" | "draft";
     questions: Question[];
+    randomizeQuestions?: boolean;
     createdAt: Timestamp;
 }
 

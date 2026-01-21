@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper to check if user is admin via Firestore
+    // Note: This requires enabling "Storage Cloud Firestore" interoperability if not already on by default in your version.
+    // If simple firestore lookup fails, we can fall back to checking custom claims or just auth.uid presence if replicated.
+    // For this app, we rely on the Firestore 'admins' collection.
+    
+    function isAdmin() {
+      // Access Firestore to check if the user is in the 'admins' collection
+      return request.auth != null && 
+             firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    // Uploads folder
+    match /uploads/{fileName} {
+      // Anyone can read (so images show up in the form)
+      allow read: if true;
+      
+      // Only admins can upload/delete
+      allow write: if isAdmin();
+    }
+  }
+}

@@ -31,6 +31,7 @@ function CreateForm() {
   const form = useForm({
     defaultValues: {
       title: "",
+      randomizeQuestions: false,
       questions: [
         {
           id: crypto.randomUUID(),
@@ -83,6 +84,28 @@ function CreateForm() {
                   className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-medium"
                   placeholder="e.g. Daily Check-in"
                 />
+              </div>
+            )}
+          />
+
+          <hr className="border-gray-200" />
+
+          {/* Randomize Option */}
+          <form.Field
+            name="randomizeQuestions"
+            children={(field) => (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="randomizeQuestions"
+                  checked={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="randomizeQuestions" className="text-sm font-medium text-gray-700">
+                  Randomize Question Order
+                </label>
               </div>
             )}
           />

@@ -9,6 +9,7 @@ import {
 import { api } from '../../lib/api'
 import type { Form } from '../../lib/types'
 import { Plus, Archive, Play, Edit } from 'lucide-react'
+import { useOptimisticMutation } from '../../hooks/useOptimisticMutation'
 
 export const Route = createFileRoute('/admin/')({
     component: Dashboard,
@@ -24,6 +25,19 @@ function Dashboard() {
 
     const queryClient = useQueryClient()
 
+    // Using our global hook for generic optimistic updates
+    const updateFormMutation = useOptimisticMutation<void, Error, { id: string, updates: Partial<Form> }>({
+        mutationFn: ({ id, updates }) => api.updateForm(id, updates),
+        queryKey: ['forms'],
+        updater: (oldForms: Form[] | undefined, { id, updates }) => {
+            return oldForms?.map(form =>
+                form.id === id ? { ...form, ...updates } : form
+            ) || []
+        }
+    })
+
+    // Kept as standard mutation since activation might be more complex/critical
+    // or arguably could also be optimistic, but let's stick to the requested refactor first
     const activateMutation = useMutation({
         mutationFn: api.setFormActive,
         onSuccess: () => {
@@ -34,11 +48,6 @@ function Dashboard() {
             console.error("Failed to activate form:", error);
             alert("Failed to activate form. Check console for details.");
         }
-    })
-
-    const updateStatusMutation = useMutation({
-        mutationFn: ({ id, status }: { id: string, status: Form['status'] }) => api.updateForm(id, { status }),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['forms'] })
     })
 
     const columns = [
@@ -57,6 +66,29 @@ function Dashboard() {
           `}>
                         {status.toUpperCase()}
                     </span>
+                )
+            }
+        }),
+        columnHelper.accessor('randomizeQuestions', {
+            header: 'Randomized',
+            cell: info => {
+                const isRandomized = info.getValue();
+                const formId = info.row.original.id;
+                return (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            updateFormMutation.mutate({ id: formId, updates: { randomizeQuestions: !isRandomized } });
+                        }}
+                        className={`px-2 py-1 rounded text-xs font-medium transition-colors border
+                            ${isRandomized
+                                ? 'bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200'
+                                : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700'
+                            }`}
+                        title="Toggle Randomization"
+                    >
+                        {isRandomized ? 'Yes' : 'No'}
+                    </button>
                 )
             }
         }),
@@ -99,7 +131,7 @@ function Dashboard() {
 
                         {form.status !== 'archived' ? (
                             <button
-                                onClick={() => updateStatusMutation.mutate({ id: form.id, status: 'archived' })}
+                                onClick={() => updateFormMutation.mutate({ id: form.id, updates: { status: 'archived' } })}
                                 className="p-1 hover:bg-gray-100 rounded text-gray-600"
                                 title="Archive"
                             >
@@ -107,7 +139,7 @@ function Dashboard() {
                             </button>
                         ) : (
                             <button
-                                onClick={() => updateStatusMutation.mutate({ id: form.id, status: 'draft' })}
+                                onClick={() => updateFormMutation.mutate({ id: form.id, updates: { status: 'draft' } })}
                                 className="p-1 hover:bg-gray-100 rounded text-gray-600"
                                 title="Unarchive (to Draft)"
                             >

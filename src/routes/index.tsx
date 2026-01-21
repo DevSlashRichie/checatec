@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { api } from '../lib/api'
 import { CheckCircle } from 'lucide-react'
 
@@ -13,6 +13,22 @@ function Index() {
         queryKey: ['activeForm'],
         queryFn: api.getActiveForm,
     })
+
+    // Randomize questions if enabled
+    // We use useMemo to ensure the order is stable for this session (until reload/fresh mount)
+    // but random across different sessions.
+    const questions = useMemo(() => {
+        if (!form?.questions) return []
+        if (!form.randomizeQuestions) return form.questions
+
+        // Fischer-Yates Shuffle copy
+        const shuffled = [...form.questions]
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled
+    }, [form])
 
     // State
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -122,14 +138,14 @@ function Index() {
         )
     }
 
-    const currentQuestion = form.questions[currentQuestionIndex]
+    const currentQuestion = questions[currentQuestionIndex]
     // Safety check just in case index is out of bounds
     if (!currentQuestion) {
         // Should not happen, but safe fallback
         return <div>Error: Question not found</div>
     }
 
-    const isLastQuestion = currentQuestionIndex === form.questions.length - 1
+    const isLastQuestion = currentQuestionIndex === questions.length - 1
 
     const handleAnswer = (answerId: string) => {
         // Save answer locally
@@ -160,7 +176,7 @@ function Index() {
             <div className="h-2 bg-gray-200">
                 <div
                     className="h-full bg-blue-600 transition-all duration-300 ease-out"
-                    style={{ width: `${((currentQuestionIndex) / form.questions.length) * 100}%` }}
+                    style={{ width: `${((currentQuestionIndex) / questions.length) * 100}%` }}
                 ></div>
             </div>
 
@@ -194,7 +210,7 @@ function Index() {
                 </div>
 
                 <div className="mt-12 text-gray-400 text-sm">
-                    Question {currentQuestionIndex + 1} of {form.questions.length}
+                    Question {currentQuestionIndex + 1} of {questions.length}
                 </div>
             </div>
         </div>
