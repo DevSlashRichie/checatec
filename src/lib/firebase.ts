@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyALAkb4ueaRlqKo4lPzLextBmpoYaR8Xv0",
   authDomain: "checatec-3383a.firebaseapp.com",
   projectId: "checatec-3383a",
-  storageBucket: "checatec-3383a.appspot.com",
+  storageBucket: "checatec-3383a.firebasestorage.app",
   messagingSenderId: "108732590249",
   appId: "1:108732590249:web:fd2dc22775f90e010461b8",
   measurementId: "G-162VWT03R5"

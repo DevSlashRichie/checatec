@@ -19,8 +19,8 @@ service firebase.storage {
       // Anyone can read (so images show up in the form)
       allow read: if true;
       
-      // Only admins can upload/delete
-      allow write: if isAdmin();
+      // Only admins can upload/delete, max 5MB
+      allow write: if isAdmin() && request.resource.size < 5 * 1024 * 1024;
     }
   }
 }

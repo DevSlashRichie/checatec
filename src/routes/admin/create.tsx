@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import {
   Save,
   ArrowLeft,
   Image as ImageIcon,
+  Loader2,
 } from "lucide-react";
 import type { Form } from "../../lib/types";
 
@@ -18,6 +20,13 @@ export const Route = createFileRoute("/admin/create")({
 function CreateForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  type UploadingState =
+    | { type: 'question'; qIndex: number }
+    | { type: 'answer'; qIndex: number; aIndex: number }
+    | null;
+
+  const [uploadingState, setUploadingState] = useState<UploadingState>(null);
 
   const createFormMutation = useMutation({
     mutationFn: (newForm: Omit<Form, "id" | "createdAt" | "status">) =>
@@ -37,13 +46,26 @@ function CreateForm() {
           id: crypto.randomUUID(),
           text: "",
           answers: [
-            { id: crypto.randomUUID(), label: "" },
-            { id: crypto.randomUUID(), label: "" },
+            { id: crypto.randomUUID(), label: "", imageUrl: "" },
+            { id: crypto.randomUUID(), label: "", imageUrl: "" },
           ],
         },
       ],
     },
     onSubmit: async ({ value }) => {
+      // Validate that every answer has at least a label or an imageUrl
+      let isValid = true;
+      for (const q of value.questions) {
+        for (const a of q.answers) {
+          if (!a.label && !a.imageUrl) {
+            isValid = false;
+          }
+        }
+      }
+      if (!isValid) {
+        alert("Please ensure all answers have either text or an image.");
+        return;
+      }
       await createFormMutation.mutateAsync(value);
     },
   });
@@ -129,8 +151,8 @@ function CreateForm() {
                         id: crypto.randomUUID(),
                         text: "",
                         answers: [
-                          { id: crypto.randomUUID(), label: "" },
-                          { id: crypto.randomUUID(), label: "" },
+                          { id: crypto.randomUUID(), label: "", imageUrl: "" },
+                          { id: crypto.randomUUID(), label: "", imageUrl: "" },
                         ],
                       })
                     }
@@ -195,9 +217,16 @@ function CreateForm() {
                               />
                               <button
                                 type="button"
-                                onClick={() =>
-                                  imgField.handleChange(undefined as any)
-                                }
+                                onClick={async () => {
+                                  if (imgField.state.value) {
+                                    try {
+                                      await api.deleteFile(imgField.state.value);
+                                    } catch (error) {
+                                      console.error("Failed to delete file:", error);
+                                    }
+                                    imgField.handleChange(undefined as any);
+                                  }
+                                }}
                                 className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
                               >
                                 <Trash2 size={12} />
@@ -205,28 +234,37 @@ function CreateForm() {
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                                <ImageIcon size={16} />
-                                <span>Upload Image</span>
-                                <input
-                                  type="file"
-                                  className="hidden"
-                                  accept="image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      try {
-                                        // Show loading state if needed? For now just await
-                                        const url = await api.uploadFile(file);
-                                        imgField.handleChange(url as any);
-                                      } catch (err) {
-                                        console.error("Upload failed", err);
-                                        alert("Failed to upload image.");
+                              {uploadingState?.type === 'question' && uploadingState.qIndex === qIndex ? (
+                                <div className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-500 bg-gray-50 border border-gray-300 rounded cursor-not-allowed">
+                                  <Loader2 size={16} className="animate-spin" />
+                                  <span>Uploading...</span>
+                                </div>
+                              ) : (
+                                <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
+                                  <ImageIcon size={16} />
+                                  <span>Upload Image</span>
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        try {
+                                          setUploadingState({ type: 'question', qIndex });
+                                          const url = await api.uploadFile(file);
+                                          imgField.handleChange(url as any);
+                                        } catch (err) {
+                                          console.error("Upload failed", err);
+                                          alert("Failed to upload image.");
+                                        } finally {
+                                          setUploadingState(null);
+                                        }
                                       }
-                                    }
-                                  }}
-                                />
-                              </label>
+                                    }}
+                                  />
+                                </label>
+                              )}
                               <span className="text-xs text-gray-400">
                                 JPG, PNG, GIF up to 5MB
                               </span>
@@ -252,6 +290,7 @@ function CreateForm() {
                                 aField.pushValue({
                                   id: crypto.randomUUID(),
                                   label: "",
+                                  imageUrl: "",
                                 })
                               }
                               className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
@@ -262,27 +301,107 @@ function CreateForm() {
                           {aField.state.value.map((_, aIndex) => (
                             <div
                               key={aIndex}
-                              className="flex items-center gap-2"
+                              className="flex items-start gap-2"
                             >
-                              <form.Field
-                                name={`questions[${qIndex}].answers[${aIndex}].label`}
-                                children={(ansField) => (
-                                  <input
-                                    value={ansField.state.value}
-                                    onBlur={ansField.handleBlur}
-                                    onChange={(e) =>
-                                      ansField.handleChange(e.target.value)
-                                    }
-                                    className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    placeholder={`Answer Option ${aIndex + 1}`}
-                                  />
-                                )}
-                              />
-                              {/* TODO: Image URL input */}
+                              <div className="flex-1 space-y-2">
+                                <form.Field
+                                  name={`questions[${qIndex}].answers[${aIndex}].label`}
+                                  children={(ansField) => (
+                                    <input
+                                      value={ansField.state.value}
+                                      onBlur={ansField.handleBlur}
+                                      onChange={(e) =>
+                                        ansField.handleChange(e.target.value)
+                                      }
+                                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      placeholder={`Answer Option ${aIndex + 1}`}
+                                    />
+                                  )}
+                                />
+                                <form.Field
+                                  name={`questions[${qIndex}].answers[${aIndex}].imageUrl` as any}
+                                  children={(ansImgField) => (
+                                    <div>
+                                      {ansImgField.state.value ? (
+                                        <div className="relative inline-block">
+                                          <img
+                                            src={ansImgField.state.value}
+                                            alt="Answer Preview"
+                                            className="h-16 w-auto object-cover rounded border border-gray-300"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              try {
+                                                await api.deleteFile(ansImgField.state.value);
+                                              } catch (error) {
+                                                console.error("Failed to delete file:", error);
+                                              }
+                                              ansImgField.handleChange(undefined as any);
+                                            }}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
+                                          >
+                                            <Trash2 size={10} />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-2">
+                                          {uploadingState?.type === 'answer' && uploadingState.qIndex === qIndex && uploadingState.aIndex === aIndex ? (
+                                            <div className="flex items-center gap-2 px-2 py-1 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-300 rounded cursor-not-allowed">
+                                              <Loader2 size={12} className="animate-spin" />
+                                              <span>Uploading...</span>
+                                            </div>
+                                          ) : (
+                                            <label className="cursor-pointer inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50">
+                                              <ImageIcon size={12} />
+                                              <span>Add Image</span>
+                                              <input
+                                                type="file"
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={async (e) => {
+                                                  const file = e.target.files?.[0];
+                                                  if (file) {
+                                                    try {
+                                                      setUploadingState({ type: 'answer', qIndex, aIndex });
+                                                      const url = await api.uploadFile(file);
+                                                      ansImgField.handleChange(url as any);
+                                                    } catch (err) {
+                                                      console.error("Upload failed", err);
+                                                      alert("Failed to upload image.");
+                                                    } finally {
+                                                      setUploadingState(null);
+                                                    }
+                                                  }
+                                                }}
+                                              />
+                                            </label>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                />
+                                {/* Validation Error Display */}
+                                <form.Subscribe
+                                  selector={(state) => {
+                                    const answers = state.values.questions[qIndex].answers;
+                                    const currentAnswer = answers[aIndex];
+                                    return !currentAnswer.label && !currentAnswer.imageUrl; // Invalid if both empty
+                                  }}
+                                  children={(isInvalid) => (
+                                    isInvalid && form.state.isSubmitted ? (
+                                      <div className="text-xs text-red-500">
+                                        Please provide text or an image.
+                                      </div>
+                                    ) : null
+                                  )}
+                                />
+                              </div>
                               <button
                                 type="button"
                                 onClick={() => aField.removeValue(aIndex)}
-                                className="text-gray-400 hover:text-red-500"
+                                className="text-gray-400 hover:text-red-500 mt-1"
                                 disabled={aField.state.value.length <= 1}
                               >
                                 <Trash2 size={14} />

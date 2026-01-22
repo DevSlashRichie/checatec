@@ -12,7 +12,7 @@ import {
     limit,
     serverTimestamp
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from "./firebase";
 import type { Form, Response } from "./types";
 
@@ -120,5 +120,10 @@ export const api = {
         const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
         const snapshot = await uploadBytes(storageRef, file);
         return getDownloadURL(snapshot.ref);
+    },
+
+    async deleteFile(url: string): Promise<void> {
+        const storageRef = ref(storage, url);
+        await deleteObject(storageRef);
     }
 };

@@ -195,15 +195,21 @@ function Index() {
                         {currentQuestion.text}
                     </h2>
 
-                    <div className="grid grid-cols-1 gap-4 w-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                         {currentQuestion.answers.map((answer) => (
                             <button
                                 key={answer.id}
                                 onClick={() => handleAnswer(answer.id)}
-                                className="bg-white hover:bg-blue-50 active:bg-blue-100 text-gray-800 font-semibold py-6 px-8 rounded-2xl shadow-sm border-2 border-transparent hover:border-blue-500 transition-all duration-200 text-xl transform active:scale-95"
+                                className="bg-white hover:bg-blue-50 active:bg-blue-100 text-gray-800 font-semibold py-6 px-8 rounded-2xl shadow-sm border-2 border-transparent hover:border-blue-500 transition-all duration-200 text-xl transform active:scale-95 flex flex-col items-center gap-4"
                             >
-                                {answer.label ?? 'Image'}
-                                {/* TODO: Handle Image Display if URL exists */}
+                                {answer.imageUrl && (
+                                    <img
+                                        src={answer.imageUrl}
+                                        alt="Answer"
+                                        className="rounded-md max-h-40 object-cover w-full"
+                                    />
+                                )}
+                                {answer.label && <span>{answer.label}</span>}
                             </button>
                         ))}
                     </div>
